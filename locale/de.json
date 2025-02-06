@@ -1,0 +1,32 @@
+{
+    "errors": {
+        "system": {
+            "server_error": "Interner Serverfehler",
+            "rate_limit": "Anfragelimit überschritten",
+            "not_found": "Ressource nicht gefunden",
+            "method_not_allowed": "Methode nicht erlaubt",
+            "timeout": "Zeitüberschreitung der Anfrage",
+            "conflict": "Ressourcenkonflikt",
+            "too_many_requests": "Zu viele Anfragen, bitte versuchen Sie es später erneut",
+            "file_not_found": "Datei nicht gefunden",
+            "file_too_large": "Dateigröße überschreitet das Limit"
+        },
+        "auth": {
+            "unauthorized": "Bitte melden Sie sich zuerst an",
+            "forbidden": "Keine Berechtigung",
+            "user_not_found": "Benutzer nicht gefunden",
+            "password_incorrect": "Falsches Passwort",
+            "user_not_verified": "Benutzer nicht verifiziert",
+            "username_exists": "Benutzername bereits vergeben",
+            "token_expired": "Anmeldung abgelaufen, bitte erneut anmelden",
+            "token_invalid": "Ungültige Authentifizierungsdaten"
+        },
+        "db": {
+            "query_failed": "Datenbankabfrage fehlgeschlagen",
+            "record_not_found": "Datensatz nicht gefunden",
+            "insert_failed": "Einfügen der Daten fehlgeschlagen",
+            "delete_failed": "Löschen der Daten fehlgeschlagen",
+            "update_failed": "Aktualisierung der Daten fehlgeschlagen"
+        }
+    }
+}

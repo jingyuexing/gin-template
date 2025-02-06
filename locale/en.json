@@ -1,0 +1,32 @@
+{
+    "errors": {
+        "system": {
+            "server_error": "Internal Server Error",
+            "rate_limit": "Rate limit exceeded",
+            "not_found": "Resource not found",
+            "method_not_allowed": "Method not allowed",
+            "timeout": "Request timeout",
+            "conflict": "Resource conflict",
+            "too_many_requests": "Too many requests, please try again later",
+            "file_not_found": "File not found",
+            "file_too_large": "File size exceeds limit"
+        },
+        "auth": {
+            "unauthorized": "Please login first",
+            "forbidden": "Permission denied",
+            "user_not_found": "User not found",
+            "password_incorrect": "Incorrect password",
+            "user_not_verified": "User not verified",
+            "username_exists": "Username already exists",
+            "token_expired": "Login expired, please login again",
+            "token_invalid": "Invalid authentication credentials"
+        },
+        "db": {
+            "query_failed": "Database query failed",
+            "record_not_found": "Record not found",
+            "insert_failed": "Failed to insert data",
+            "delete_failed": "Failed to delete data",
+            "update_failed": "Failed to update data"
+        }
+    }
+}
