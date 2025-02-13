@@ -32,7 +32,7 @@ type Database struct {
 	Host     string `json:"host" env:"host"`
 	Port     int    `json:"port" env:"port"`
 	DBName   string `json:"dbname" env:"dbname"`
-	Config   string `json:"config" env:"config"`
+	Config   string `json:"config"`
 }
 
 type SystemUserConfig struct {
@@ -47,17 +47,25 @@ type SystemVersion struct {
 	System string `json:"system"`
 }
 
+type SystemLogger struct {
+	Level string `json:"level"`
+	Path string `json:"path"`
+}
+
 type System struct {
 	Language      string            `json:"lang"`
 	User          SystemUserConfig  `json:"user"`
 	Admin         SystemAdminConfig `json:"admin"`
 	Version       SystemVersion     `json:"version"`
+	Name string `json:"name" env:"app_name"`
 	Locale        string            `json:"locale" env:"locale"`
 	HideVersion   bool              `json:"hide_version" env:"hide_version"`
 	Token         TokenConfig       `json:"token"`
 	Static        string            `json:"static" env:"static_path"`
 	SwaggerEnable bool              `json:"swagger_enable" env:"swagger_enable"`
 	LoggerLever   string            `json:"logger_level" env:"logger_level"`
+	LoggerPath    string            `json:"logger_path" env:"logger_path"`
+	LoggerName string `json:"logger_name" env:"logger_name"`
 }
 
 type Configure struct {
@@ -69,18 +77,13 @@ type Configure struct {
 
 func LoadBaseConfig() *BaseEnv {
 	fmt.Println("loading .env file")
-	data, err := os.ReadFile(".env")
-	if err != nil {
-		fmt.Printf("Error reading .env file: %v\n", err)
-		return nil
-	}
-	env := dotenv.New(string(data), "_.")
+	env := LoadEnv()
 	baseEnv := &BaseEnv{}
 	if err := env.Bind(baseEnv); err != nil {
 		fmt.Printf("Error binding base env: %v\n", err)
 		return nil
 	}
-	
+
 	// 如果指定了mode，加载对应的环境配置
 	if baseEnv.Mode != "" {
 		modeEnvData, err := os.ReadFile(".env." + baseEnv.Mode)
@@ -102,12 +105,11 @@ func LoadingConfigure() *Configure {
 
 	// 使用ConfigurePath加载JSON配置
 	config := utils.LoadConfig[Configure](baseEnv.ConfigurePath)
-	
+
 	// 重新加载环境变量以确保所有配置都被正确覆盖
 	env := LoadEnv()
 	if env != nil {
 		env.Bind(&config.Env)
-		env.Bind(&config.Database)
 		env.Bind(&config.System)
 	}
 
@@ -143,9 +145,10 @@ func LoadEnv() *dotenv.DotENV {
 		return nil
 	}
 	env := dotenv.New(string(data), "_.")
-	
 	baseEnv := &BaseEnv{}
-	if err := env.Bind(baseEnv); err != nil {
+
+
+	if err := env.Parse().Bind(baseEnv); err != nil {
 		return nil
 	}
 

@@ -2,6 +2,9 @@ package logger
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"template/global/config"
 
 	"github.com/jingyuexing/go-utils"
 	"go.uber.org/zap"
@@ -9,20 +12,39 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-func NewLogger() *zap.Logger {
+func NewLogger(config config.System) *zap.Logger {
+	// 确保日志目录存在
+	if err := os.MkdirAll(config.LoggerPath, os.ModePerm); err != nil {
+		fmt.Printf("无法创建日志目录: %v", err)
+		return nil
+	}
+
+	appName := config.Name
+	if appName == "" {
+		appName = "app"
+	}
+
 	datetime := utils.NewDateTime()
-	loggerInfoName := utils.Template("app-{date}-info.log", map[string]any{
+	loggerInfoName := utils.Template(config.LoggerName, map[string]any{
 		"date": datetime.Format("YYYY-MM-DD"),
+		"app":  appName,
+		"level": "info",
 	}, "{}")
-	loggerDebugName := utils.Template("app-{date}-debug.log", map[string]any{
+	loggerDebugName := utils.Template(config.LoggerName, map[string]any{
 		"date": datetime.Format("YYYY-MM-DD"),
+		"app":  appName,
+		"level": "debug",
 	}, "{}")
-	loggerErrorName := utils.Template("app-{date}-error.log", map[string]any{
+	loggerErrorName := utils.Template(config.LoggerName, map[string]any{
 		"date": datetime.Format("YYYY-MM-DD"),
+		"app":  appName,
+		"level": "error",
 	}, "{}")
 
-	// 构建文件名
-	// filename := "app_" + utils.NewDateTime().Format("2006-01-02") + ".log"
+	// 使用filepath.Join构建完整的日志文件路径
+	debugLogPath := filepath.Join(config.LoggerPath, loggerDebugName)
+	infoLogPath := filepath.Join(config.LoggerPath, loggerInfoName)
+	errorLogPath := filepath.Join(config.LoggerPath, loggerErrorName)
 
 	// 创建Encoder配置
 	encoderConfig := zapcore.EncoderConfig{
@@ -35,18 +57,29 @@ func NewLogger() *zap.Logger {
 		EncodeTime:   zapcore.ISO8601TimeEncoder,    // 时间格式
 	}
 
-	// 创建不同级别的日志文件
-	debugFile, err := createLogFile(loggerDebugName)
-	if err != nil {
-		fmt.Printf("Error creating debug log file: %s", err.Error())
+	// 创建不同级别的日志文件,使用完整路径
+	debugFile := &lumberjack.Logger{
+		Filename:   debugLogPath,
+		MaxSize:    10,
+		MaxBackups: 5,
+		MaxAge:     30,
+		Compress:   true,
 	}
-	infoFile, err := createLogFile(loggerInfoName)
-	if err != nil {
-		fmt.Printf("Error creating info log file: %s", err.Error())
+
+	infoFile := &lumberjack.Logger{
+		Filename:   infoLogPath,
+		MaxSize:    10,
+		MaxBackups: 5,
+		MaxAge:     30,
+		Compress:   true,
 	}
-	errorFile, err := createLogFile(loggerErrorName)
-	if err != nil {
-		fmt.Printf("Error creating error log file: %v", err.Error())
+
+	errorFile := &lumberjack.Logger{
+		Filename:   errorLogPath,
+		MaxSize:    10,
+		MaxBackups: 5,
+		MaxAge:     30,
+		Compress:   true,
 	}
 
 	// 创建不同日志级别的Core
@@ -75,14 +108,4 @@ func NewLogger() *zap.Logger {
 	logger := zap.New(core)
 
 	return logger
-}
-
-func createLogFile(filename string) (*lumberjack.Logger, error) {
-	return &lumberjack.Logger{
-		Filename:   filename, // 设置日志文件名
-		MaxSize:    10,       // 最大日志文件大小（单位MB）
-		MaxBackups: 5,        // 最大备份数量
-		MaxAge:     30,       // 保留日志的最大天数
-		Compress:   true,     // 启用日志压缩
-	}, nil
 }

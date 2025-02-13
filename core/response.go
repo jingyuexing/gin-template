@@ -13,7 +13,10 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-var valid = validator.New()
+var (
+	successResponse = gin.H{"code": 0, "message": i18n.I18N.T("Hints.Success")}
+	validatorInstance = validator.New()
+)
 
 func Response(ctx *gin.Context, message string, data any, status int, code int) {
 	ctx.JSON(status, gin.H{
@@ -26,24 +29,24 @@ func Response(ctx *gin.Context, message string, data any, status int, code int) 
 func ResponseError(ctx *gin.Context, err error, format ...map[string]any) {
 	if customErr, ok := err.(*builtinerrors.Exception); ok {
 		customErr.Format(format...)
-		resultBody := gin.H{
+		result := gin.H{
 			"code":    customErr.Code(),
 			"message": customErr.Error(),
 		}
-		if len(customErr.ErrorMessage()) != 0 {
-			resultBody["errors"] = customErr.ErrorMessage()
+
+		if errMsg := customErr.ErrorMessage(); len(errMsg) > 0 {
+			result["errors"] = errMsg
 		}
-		ctx.JSON(customErr.Status(), resultBody)
+
+		ctx.JSON(customErr.Status(), result)
 		return
 	}
 
-	// 防止递归调用
 	defaultErr := builtin.ErrInternalServer
-	resultBody := gin.H{
+	ctx.JSON(defaultErr.Status(), gin.H{
 		"code":    defaultErr.Code(),
 		"message": defaultErr.Error(),
-	}
-	ctx.JSON(defaultErr.Status(), resultBody)
+	})
 }
 
 func SetHeaders(ctx *gin.Context, headers map[string]string) {
@@ -53,15 +56,20 @@ func SetHeaders(ctx *gin.Context, headers map[string]string) {
 }
 
 func ResponseData(ctx *gin.Context, data any) {
+	if data == nil {
+		ctx.JSON(http.StatusOK, successResponse)
+		return
+	}
+
 	ctx.JSON(http.StatusOK, gin.H{
 		"code":    0,
-		"message": i18n.I18N.T("Hints.Success"),
+		"message": successResponse["message"],
 		"data":    data,
 	})
 }
 
 func ValidateParams[T any](bind T) error {
-	err := valid.Struct(bind)
+	err := validatorInstance.Struct(bind)
 	if err != nil {
 		parmeterErr := builtinerrors.New("Errors.ParameterIsInvalid", http.StatusBadRequest, builtin.ParameterIsInvalidCode)
 		if validErr, ok := err.(validator.ValidationErrors); ok {

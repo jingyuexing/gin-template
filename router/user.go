@@ -8,10 +8,10 @@ func userRouterInit(public *gin.RouterGroup, private *gin.RouterGroup){
 	publicUser := publicRouter.Group("user")
 	privateUser := privateRouter.Group("user")
 
-	// userController := API.User
+	userController := API.User
+	publicUser.POST("create", userController.CreateUser)
 
-	// publicUser.GET("list", userController.List)
-	// publicUser.POST("create", userController.Create)
-	// publicUser.PUT("update", userController.Update)
-	// publicUser.DELETE("delete", userController.Delete)
+	privateUser.GET("list", userController.List)
+	privateUser.PUT("update", userController.Update)
+	privateUser.DELETE("delete", userController.Delete)
 }

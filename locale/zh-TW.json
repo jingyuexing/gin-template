@@ -1,0 +1,32 @@
+{
+    "errors": {
+        "system": {
+            "server_error": "伺服器內部錯誤",
+            "rate_limit": "請求頻率超限",
+            "not_found": "請求的資源不存在",
+            "method_not_allowed": "請求方法不允許",
+            "timeout": "請求超時",
+            "conflict": "資源衝突",
+            "too_many_requests": "請求過於頻繁，請稍後重試",
+            "file_not_found": "檔案未找到",
+            "file_too_large": "檔案大小超出限制"
+        },
+        "auth": {
+            "unauthorized": "請先登入",
+            "forbidden": "沒有操作權限",
+            "user_not_found": "使用者不存在",
+            "password_incorrect": "密碼錯誤",
+            "user_not_verified": "使用者未驗證",
+            "username_exists": "使用者名稱已存在",
+            "token_expired": "登入已過期，請重新登入",
+            "token_invalid": "無效的認證資訊"
+        },
+        "db": {
+            "query_failed": "資料查詢失敗",
+            "record_not_found": "記錄不存在",
+            "insert_failed": "資料新增失敗",
+            "delete_failed": "資料刪除失敗",
+            "update_failed": "資料更新失敗"
+        }
+    }
+}

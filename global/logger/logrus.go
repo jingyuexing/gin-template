@@ -4,6 +4,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"template/global/config"
 
 	"github.com/jingyuexing/go-utils"
 	"github.com/sirupsen/logrus"
@@ -12,7 +13,7 @@ import (
 
 // var Loggerus *logrus.Logger
 
-func LogrusInit() *logrus.Logger {
+func LogrusInit(config config.System) *logrus.Logger {
 	// 创建一个新的 Logger 实例
 	Loggerus := logrus.New()
 
@@ -26,22 +27,21 @@ func LogrusInit() *logrus.Logger {
 	})
 
 	// 确保日志目录存在
-	logDir := "log"
-	if err := os.MkdirAll(logDir, os.ModePerm); err != nil {
+	if err := os.MkdirAll(config.LoggerPath, os.ModePerm); err != nil {
 		Loggerus.Fatalf("无法创建日志目录: %v", err)
 	}
 
 	datetime := utils.NewDateTime()
 	datetime.Format("YYYY-MM-DD")
-	loggerInfoName := utils.Template("GOA-{date}-info.log", map[string]any{
+	loggerInfoName := utils.Template("app-{date}-info.log", map[string]any{
 		"date": datetime.Format("YYYY-MM-DD"),
 	}, "{}")
-	loggerErrorName := utils.Template("GOA-{date}-error.log", map[string]any{
+	loggerErrorName := utils.Template("app-{date}-error.log", map[string]any{
 		"date": datetime.Format("YYYY-MM-DD"),
 	}, "{}")
 
-	infoLogPath := filepath.Join(logDir,loggerInfoName)
-	errorLogPath := filepath.Join(logDir, loggerErrorName)
+	infoLogPath := filepath.Join(config.LoggerPath,loggerInfoName)
+	errorLogPath := filepath.Join(config.LoggerPath, loggerErrorName)
 
 	debugFile := &lumberjack.Logger{
         Filename:  infoLogPath, // 将 debug 和 info 日志写入同一个文件

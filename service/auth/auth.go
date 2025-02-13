@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 	parseduration "template/common/parseDuration"
+	"template/common/utils"
 	"template/global"
 	"template/internal/builtin"
 	"time"
@@ -22,7 +23,13 @@ const (
 	// RefreshTokenExpiry = time.Hour * 24 * 7 // 刷新令牌7天过期
 )
 
-type AuthService struct{}
+type AuthService struct{
+    tokenSign []byte
+    accessTokenDuration  time.Duration
+    refreshTokenDuration time.Duration
+}
+
+var BuiltInAuth = new(AuthService)
 
 type OauthClaims struct {
 	Uid        uint   `json:"uid"`
@@ -33,76 +40,69 @@ type OauthClaims struct {
 	jwt.RegisteredClaims
 }
 
-// GenerateToken 生成指定类型的token
-func (auth AuthService) GenerateToken(username, tokenType, gid string, id uint, duration time.Duration) (string, error) {
-	claims := &OauthClaims{
-		Uid:       uint(id),
-		AccountId: username,
-		GID:       gid,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(duration)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			NotBefore: jwt.NewNumericDate(time.Now()),
-			Subject:   tokenType,
-		},
-	}
+// New creates a new AuthService instance
+func New() *AuthService {
+    auth := &AuthService{
+        tokenSign: []byte(global.Config.System.User.Sign),
+        accessTokenDuration:  25 * time.Minute,
+        refreshTokenDuration: 7 * 24 * time.Hour,
+    }
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	signedToken, err := token.SignedString([]byte(global.Config.System.User.Sign))
-	if err != nil {
-		return "", builtin.ErrInternalServer
-	}
-	return signedToken, nil
+    // 初始化配置的过期时间
+    if global.Config.System.Token.AccessTokenExpiration != "" {
+        if duration, err := parseduration.ParseDuration(global.Config.System.Token.AccessTokenExpiration); err == nil {
+            auth.accessTokenDuration = duration
+        }
+    }
+
+    if global.Config.System.Token.RefreshTokenExpiration != "" {
+        if duration, err := parseduration.ParseDuration(global.Config.System.Token.RefreshTokenExpiration); err == nil {
+            auth.refreshTokenDuration = duration
+        }
+    }
+
+    return auth
 }
 
-// CreateAccessToken 创建访问令牌
-func (auth AuthService) CreateAccessToken(username, gid string, id uint) (string, error) {
-	dura := 25 * time.Minute // 访问令牌有效期
-	if global.Config.System.Token.AccessTokenExpiration != "" {
-		result, err := parseduration.ParseDuration(
-			global.Config.System.Token.AccessTokenExpiration,
-		) // 访问令牌有效期
-		if err != nil {
-			global.Logger.Error("访问令牌解析出现错误")
+// GenerateToken optimization
+func (auth *AuthService) GenerateToken(username, tokenType, gid string, id uint, duration time.Duration) (string, error) {
+    claims := &OauthClaims{
+        Uid:       id,
+        AccountId: username,
+        GID:      gid,
+        RegisteredClaims: jwt.RegisteredClaims{
+            ExpiresAt: jwt.NewNumericDate(time.Now().Add(duration)),
+            IssuedAt:  jwt.NewNumericDate(time.Now()),
+            NotBefore: jwt.NewNumericDate(time.Now()),
+            Subject:   tokenType,
+        },
+    }
 
-		}
-		if err == nil || result != 0 {
-			dura = result
-		}
-	}
-	return auth.GenerateToken(username, AccessToken, gid, id, dura)
+    token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+    return token.SignedString(auth.tokenSign)
 }
 
-// CreateRefreshToken 创建刷新令牌
-func (auth AuthService) CreateRefreshToken(username, gid string, id uint) (string, error) {
-	dura := 7 * 24 * time.Hour // 刷新令牌有效期
-	if global.Config.System.Token.RefreshTokenExpiration != "" {
-		result, err := parseduration.ParseDuration(
-			global.Config.System.Token.RefreshTokenExpiration,
-		) // 刷新令牌有效期
-		if err != nil {
-			global.Logger.Error("刷新令牌解析出现错误")
-		}
-		if err == nil || result != 0 {
-			dura = result
-		}
-	}
-	return auth.GenerateToken(username, RefreshToken, gid, id, dura)
+// CreateAccessToken optimization
+func (auth *AuthService) CreateAccessToken(username, gid string, id uint) (string, error) {
+    return auth.GenerateToken(username, AccessToken, gid, id, auth.accessTokenDuration)
 }
 
-// Token 创建访问令牌和刷新令牌
-func (auth AuthService) Token(username, gid string, id uint) (accessToken, refreshToken string, err error) {
-	accessToken, err = auth.CreateAccessToken(username, gid, id)
-	if err != nil {
-		return "", "", builtin.ErrInternalServer
-	}
+// CreateRefreshToken optimization
+func (auth *AuthService) CreateRefreshToken(username, gid string, id uint) (string, error) {
+    return auth.GenerateToken(username, RefreshToken, gid, id, auth.refreshTokenDuration)
+}
 
-	refreshToken, err = auth.CreateRefreshToken(username, gid, id)
-	if err != nil {
-		return "", "", builtin.ErrInternalServer
-	}
+// Token optimization
+func (auth *AuthService) Token(username, gid string, id uint) (accessToken, refreshToken string, err error) {
+    if accessToken, err = auth.CreateAccessToken(username, gid, id); err != nil {
+        return "", "", err
+    }
 
-	return accessToken, refreshToken, nil
+    if refreshToken, err = auth.CreateRefreshToken(username, gid, id); err != nil {
+        return "", "", err
+    }
+
+    return
 }
 
 // RemovePrefix checks if the input string has the specified prefix.
@@ -114,28 +114,25 @@ func RemovePrefix(input, prefix string) string {
 	return input
 }
 
-// ParseToken 解析token
-func (auth AuthService) ParseToken(tokenString string) (*OauthClaims, error) {
-	if global.Config.System.Token.Type != "" {
-		tokenString = RemovePrefix(tokenString, global.Config.System.Token.Type+" ")
-	}
-	token, err := jwt.ParseWithClaims(tokenString, &OauthClaims{}, func(token *jwt.Token) (interface{}, error) {
-		return []byte(global.Config.System.User.Sign), nil
-	})
+// ParseToken optimization
+func (auth *AuthService) ParseToken(tokenString string) (*OauthClaims, error) {
+    if global.Config.System.Token.Type != "" {
+        tokenString = RemovePrefix(tokenString, global.Config.System.Token.Type+" ")
+    }
 
-	if err != nil {
-		if errors.Is(err,jwt.ErrTokenExpired) {
-			return nil, builtin.ErrTokenExpired
-		}
-		return nil, builtin.ErrTokenInvalid
-	}
+    token, err := jwt.ParseWithClaims(tokenString, &OauthClaims{}, func(token *jwt.Token) (interface{}, error) {
+        return auth.tokenSign, nil
+    })
 
-	claims, ok := token.Claims.(*OauthClaims)
-	if !ok || !token.Valid {
-		return nil, builtin.ErrTokenInvalid
-	}
+    if err != nil {
+        if errors.Is(err, jwt.ErrTokenExpired) {
+            return nil, builtin.ErrTokenExpired
+        }
+        return nil, builtin.ErrTokenInvalid
+    }
 
-	return claims, nil
+    claims, ok := token.Claims.(*OauthClaims)
+    return claims, utils.BoolToError(ok && token.Valid, builtin.ErrTokenInvalid)
 }
 
 // ValidateToken 验证token是否有效

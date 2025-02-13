@@ -1,0 +1,32 @@
+{
+    "errors": {
+        "system": {
+            "server_error": "خطأ داخلي في الخادم",
+            "rate_limit": "تم تجاوز حد الطلبات",
+            "not_found": "المورد غير موجود",
+            "method_not_allowed": "طريقة غير مسموح بها",
+            "timeout": "انتهت مهلة الطلب",
+            "conflict": "تعارض في الموارد",
+            "too_many_requests": "طلبات كثيرة جداً، يرجى المحاولة لاحقاً",
+            "file_not_found": "الملف غير موجود",
+            "file_too_large": "حجم الملف يتجاوز الحد المسموح"
+        },
+        "auth": {
+            "unauthorized": "يرجى تسجيل الدخول أولاً",
+            "forbidden": "غير مصرح بالوصول",
+            "user_not_found": "المستخدم غير موجود",
+            "password_incorrect": "كلمة المرور غير صحيحة",
+            "user_not_verified": "المستخدم غير مؤكد",
+            "username_exists": "اسم المستخدم موجود بالفعل",
+            "token_expired": "انتهت صلاحية الجلسة، يرجى إعادة تسجيل الدخول",
+            "token_invalid": "بيانات المصادقة غير صالحة"
+        },
+        "db": {
+            "query_failed": "فشل في الاستعلام",
+            "record_not_found": "السجل غير موجود",
+            "insert_failed": "فشل في إدخال البيانات",
+            "delete_failed": "فشل في حذف البيانات",
+            "update_failed": "فشل في تحديث البيانات"
+        }
+    }
+}

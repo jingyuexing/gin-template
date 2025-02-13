@@ -7,4 +7,4 @@ import (
 )
 var Config = config.LoadingConfigure()
 var DB = database.CreateConnect(Config.Database)
-var Logger = logger.NewLogger()
+var Logger = logger.NewLogger(Config.System)

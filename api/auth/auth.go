@@ -35,7 +35,7 @@ func (auth AuthController) Login(ctx *gin.Context){
 		core.ResponseError(ctx, err)
 		return
 	}
-	
+
 	// 获取用户信息
     user, err := accountService.GetByEmail(param.Email)
     if err != nil {
@@ -55,7 +55,8 @@ func (auth AuthController) Login(ctx *gin.Context){
         core.ResponseError(ctx, err)
         return
     }
-
+	ctx.Writer.Header().Set("Authorization", "Bearer "+accessToken)
+	ctx.Writer.Header().Set("Refresh-Token", refreshToken)
     core.ResponseData(ctx, gin.H{
         "access_token":  accessToken,
         "refresh_token": refreshToken,
@@ -98,9 +99,29 @@ func (auth AuthController) Refresh(ctx *gin.Context){
         core.ResponseError(ctx, err)
         return
     }
-
+	ctx.Writer.Header().Set("Authorization", "Bearer "+accessToken)
     core.ResponseData(ctx, gin.H{
         "access_token": accessToken,
         "token_type":   "Bearer",
     })
+}
+
+func (auth AuthController) AuthorizeClient(ctx *gin.Context){
+
+}
+
+func (auth AuthController) Oauth2Login(ctx *gin.Context){
+	// TODO
+}
+
+func (auth AuthController) Oauth2Callback(ctx *gin.Context){
+	// TODO
+}
+
+func (auth AuthController) Oauth2Logout(ctx *gin.Context){
+
+}
+
+func (auth AuthController) Oauth2Refresh(ctx *gin.Context){
+
 }

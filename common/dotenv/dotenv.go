@@ -6,8 +6,9 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-	"unicode"
 	"template/common/mapping"
+	"unicode"
+
 	"github.com/jingyuexing/go-utils"
 )
 
@@ -110,7 +111,8 @@ func isNumeric(ch rune) bool {
 }
 
 func isLetter(ch rune) bool {
-	return InRange(ch, 'a', 'z') || InRange(ch, 'A', 'Z') || isExtend(ch, '+', '-', '*', '/', '!', '%', '~') || ch >= '\xff'
+	// 修改字符判断逻辑，支持UTF-8
+	return unicode.IsLetter(ch) || ch == '_' || ch == '-' || ch >= '\u0080'
 }
 
 func InRange(ch rune, begin, end rune) bool {
@@ -139,15 +141,24 @@ type DotENV struct {
 	vars      map[string]any
 	delimiter string
 	tokens    []EnvToken
+	nested    bool // 是否启用嵌套结构解析
 }
 
 func New(text, delimiter string) *DotENV {
 	d := &DotENV{
 		delimiter: delimiter,
 		env:       make(map[string]any),
+		exports:   make(map[string]any),
+		vars:      make(map[string]any),
+		nested:    true, // 默认启用嵌套结构
 	}
 	d.SetContent(text)
 	return d
+}
+
+// SetNested 设置是否启用嵌套结构解析
+func (d *DotENV) SetNested(nested bool) {
+	d.nested = nested
 }
 
 func (d *DotENV) SetContent(text string) {
@@ -177,118 +188,151 @@ func (d *DotENV) tokenize(text string) []EnvToken {
 	d.maxLength = len(_text)
 	current := 0
 	length := len(_text)
+
 	for current < length {
 		ch := _text[current]
-		if isNumeric(ch) {
+
+		// 处理空行和纯注释行
+		if ch == '\n' {
+			current++
+			continue
+		}
+
+		// 跳过行首空白字符
+		if isWhitespace(ch) {
+			current++
+			continue
+		}
+
+		// 优先处理注释
+		if ch == TokenValues[HASH] {
+			commentToken := d.parseComment(current)
+			if len(commentToken.Value) > 0 {
+				tokens = append(tokens, EnvToken{Kind: Hash, Value: string(ch)})
+				tokens = append(tokens, commentToken)
+			}
+			current = d.current
+			continue
+		}
+
+		// 其他token处理
+		switch {
+		case isNumeric(ch):
 			tokens = append(tokens, d.parseNumber(current))
 			current = d.current
-		} else if isLetter(ch) {
+		case isLetter(ch):
 			tokens = append(tokens, d.parseKey(current))
 			current = d.current
-		} else if ch == TokenValues[HASH] {
-			tokens = append(tokens, EnvToken{Kind: Hash, Value: string(ch)})
-			current++
-			tokens = append(tokens, d.parseComment(current))
-			current = d.current
-		} else if ch == TokenValues[DOUBLE_QUOTE] || ch == TokenValues[SINGLE_QUOTE] {
+		case ch == TokenValues[DOUBLE_QUOTE] || ch == TokenValues[SINGLE_QUOTE]:
 			tokens = append(tokens, d.parseString(ch, current)...)
 			current = d.current
-		} else if ch == TokenValues[RAW] {
+		case ch == TokenValues[RAW]:
 			tokens = append(tokens, d.parseRawString(current))
 			current = d.current
-		} else if ch == TokenValues[LBRACKETS] || ch == TokenValues[RBRACKETS] {
+		case ch == TokenValues[LBRACKETS] || ch == TokenValues[RBRACKETS]:
 			tokens = append(tokens, EnvToken{Kind: Brackets, Value: string(ch)})
 			current++
-		} else if ch == TokenValues[LBRACES] {
+		case ch == TokenValues[LBRACES]:
 			tokens = append(tokens, d.parseJSON(current))
 			current = d.current
-		} else if ch == TokenValues[COMMAS] {
+		case ch == TokenValues[COMMAS]:
 			tokens = append(tokens, EnvToken{Kind: Commas, Value: string(ch)})
 			current++
-		} else if ch == TokenValues[EQUAL] {
+		case ch == TokenValues[EQUAL]:
 			tokens = append(tokens, EnvToken{Kind: Equal, Value: string(ch)})
 			current++
-		} else if isWhitespace(ch) {
-			current++
-		} else {
+		default:
 			current++
 		}
 	}
-	d.tokens = tokens
-	return d.tokens
+	return tokens
 }
 
 // parseString 解析字符串并返回Token列表
 func (d *DotENV) parseString(entry rune, current int) []EnvToken {
-	d.current = current
+	d.current = current + 1 // 跳过开始的引号
 	_content := []rune(d.content)
 	var tokens []EnvToken
 	value := ""
-	inTemplate := false
-	templateName := ""
+	escaped := false
 
 	for d.current < d.maxLength {
 		ch := _content[d.current]
 
-		// 检查是否进入或退出模板变量
+		// 处理转义字符
+		if escaped {
+			switch ch {
+			case 'n':
+				value += "\n"
+			case 't':
+				value += "\t"
+			case 'r':
+				value += "\r"
+			default:
+				value += string(ch)
+			}
+			escaped = false
+			d.current++
+			continue
+		}
+
+		if ch == '\\' {
+			escaped = true
+			d.current++
+			continue
+		}
+
+		// 处理字符串结束
+		if ch == entry {
+			d.current++ // 跳过结束的引号
+			break
+		}
+
+		// 处理变量替换
 		if ch == '$' && d.peekNext() == '{' {
 			if value != "" {
 				tokens = append(tokens, EnvToken{Kind: Text, Value: value})
 				value = ""
 			}
-			inTemplate = true
-			d.current += 2 // 跳过 "${"
-			templateName = ""
-			continue
-		} else if ch == '{' && d.peekNext() != '{' {
-			if value != "" {
-				tokens = append(tokens, EnvToken{Kind: Text, Value: value})
-				value = ""
-			}
-			inTemplate = true
-			d.current++ // 跳过 "{"
-			templateName = ""
+			varToken := d.parseVariable()
+			tokens = append(tokens, varToken)
 			continue
 		}
 
-		// 退出模板解析
-		if inTemplate && ch == '}' {
-			if val, ok := d.vars[templateName]; ok {
-				tokens = append(tokens, EnvToken{Kind: Variable, Value: utils.ToString(val)})
-			} else {
-				tokens = append(tokens, EnvToken{Kind: Placeholder, Value: templateName})
-			}
-			inTemplate = false
-			d.current++
-			continue
-		}
-
-		// 解析模板变量名
-		if inTemplate {
-			if unicode.IsLetter(ch) || unicode.IsDigit(ch) || ch == '_' {
-				templateName += string(ch)
-			} else {
-				// 如果出现未预期的字符，返回错误标记
-				tokens = append(tokens, EnvToken{Kind: Hash, Value: templateName})
-				inTemplate = false
-			}
-		} else {
-			// 普通字符直接加入
-			value += string(ch)
-		}
-
+		value += string(ch)
 		d.current++
 	}
 
-	// 处理剩余的普通文本
 	if value != "" {
 		tokens = append(tokens, EnvToken{Kind: Text, Value: value})
 	}
-	return tokens
 
+	return tokens
 }
 
-// peekNext 查看下一个字符而不前进 pos
+func (d *DotENV) parseVariable() EnvToken {
+	d.current += 2 // 跳过 "${"
+	varName := ""
+
+	for d.current < d.maxLength {
+		ch := rune(d.content[d.current])
+		if ch == '}' {
+			d.current++
+			break
+		}
+		varName += string(ch)
+		d.current++
+	}
+
+	// 查找变量值
+	if val, ok := d.vars[varName]; ok {
+		return EnvToken{Kind: Variable, Value: utils.ToString(val)}
+	}
+
+	// 如果找不到变量，返回占位符
+	return EnvToken{Kind: Placeholder, Value: varName}
+}
+
 func (d *DotENV) peekNext() rune {
 	if d.current+1 < d.maxLength {
 		return rune(d.content[d.current+1])
@@ -345,7 +389,7 @@ func (d *DotENV) parse(tokens []EnvToken) {
 			if name == "" {
 				tokenCache = append(tokenCache, currentToken)
 			} else {
-				d.env[name] = currentToken.Value
+				d.setNestedValue(name, currentToken.Value)
 				currentToken.Kind = Text
 				name = ""
 			}
@@ -375,7 +419,7 @@ func (d *DotENV) parse(tokens []EnvToken) {
 				}
 			}
 			if name != "" {
-				d.env[name] = value
+				d.setNestedValue(name, value)
 				name = ""
 			}
 		case Equal:
@@ -386,11 +430,11 @@ func (d *DotENV) parse(tokens []EnvToken) {
 					result := ToBoolean(currentToken)
 					name = tokenCache[len(tokenCache)-1].Value
 					if result == 3 {
-						d.env[name] = currentToken.Value // 将后一个 key token 作为值
+						d.setNestedValue(name, currentToken.Value) // 将后一个 key token 作为值
 					} else if result == 1 {
-						d.env[name] = true
+						d.setNestedValue(name, true)
 					} else {
-						d.env[name] = false
+						d.setNestedValue(name, false)
 					}
 					name = ""
 				}
@@ -401,9 +445,10 @@ func (d *DotENV) parse(tokens []EnvToken) {
 		case Number:
 			if name != "" {
 				if strings.Contains(currentToken.Value, ".") {
-					d.env[name] = d.convertNumber(currentToken)
+					d.setNestedValue(name, d.convertNumber(currentToken))
+				} else {
+					d.setNestedValue(name, d.convertInt(currentToken))
 				}
-				d.env[name] = d.convertInt(currentToken)
 				name = ""
 			}
 		case EXPORT:
@@ -443,12 +488,12 @@ func (d *DotENV) parse(tokens []EnvToken) {
 			}
 		case Text:
 			if name != "" {
-				d.env[name] = currentToken.Value
+				d.setNestedValue(name, currentToken.Value)
 				name = ""
 			}
 		case JSON:
 			if name != "" {
-				d.env[name] = currentToken.Value // You may need to implement JSON parsing here
+				d.setNestedValue(name, d.convertJSON(currentToken))
 				name = ""
 			}
 		}
@@ -514,17 +559,29 @@ func (d *DotENV) parseRawString(current int) EnvToken {
 }
 
 func (d *DotENV) parseComment(current int) EnvToken {
-	d.current = current
+	d.current = current + 1 // 跳过 # 符号
 	value := ""
-	ch := d.content[d.current]
-	for d.current < d.maxLength && ch != '\n' {
+
+	for d.current < d.maxLength {
+		ch := rune(d.content[d.current])
+		if ch == '\n' || ch == '\r' {
+			break
+		}
 		value += string(ch)
 		d.current++
-		if d.current < d.maxLength {
-			ch = d.content[d.current]
-		}
 	}
-	return EnvToken{Kind: Comment, Value: value}
+
+	// 处理行末
+	if d.current < d.maxLength && rune(d.content[d.current]) == '\r' {
+		d.current++
+		if d.current < d.maxLength && rune(d.content[d.current]) == '\n' {
+			d.current++
+		}
+	} else if d.current < d.maxLength && rune(d.content[d.current]) == '\n' {
+		d.current++
+	}
+
+	return EnvToken{Kind: Comment, Value: strings.TrimSpace(value)}
 }
 func (d *DotENV) Environment(env map[string]string) {
 	allENV := d.flattenNestedDict(d.env)
@@ -577,14 +634,36 @@ func (d *DotENV) Bind(config any) error {
 	})
 }
 func (d *DotENV) Get(field string) any {
-	val, ok := d.exports[field]
-	if !ok {
-		val, ok = d.env[field]
+	// 先检查导出变量
+	if val, ok := d.exports[field]; ok {
+		return val
 	}
-	if !ok {
-		return ""
+
+	// 检查嵌套结构
+	if d.nested && strings.Contains(field, d.delimiter) {
+		parts := strings.Split(field, d.delimiter)
+		current := d.env
+
+		for _, part := range parts {
+			if next, ok := current[part]; ok {
+				if mapVal, isMap := next.(map[string]any); isMap {
+					current = mapVal
+				} else {
+					return next
+				}
+			} else {
+				return nil
+			}
+		}
+		return current
 	}
-	return val
+
+	// 常规查找
+	if val, ok := d.env[field]; ok {
+		return val
+	}
+
+	return nil
 }
 
 func (d *DotENV) Load(text string) {
@@ -593,17 +672,30 @@ func (d *DotENV) Load(text string) {
 
 func (d *DotENV) String() string {
 	var text []string
-	for key, value := range d.env {
-		if mapValue, ok := value.(map[string]any); ok {
-			temp := map[string]any{key: mapValue}
-			flattened := d.flattenNestedDict(temp)
-			for flattenKey, flattenValue := range flattened {
-				text = append(text, flattenKey+"="+fmt.Sprintf("%v", flattenValue))
+
+	var flatten func(prefix string, value any) []string
+	flatten = func(prefix string, value any) []string {
+		var result []string
+
+		switch v := value.(type) {
+		case map[string]any:
+			for k, val := range v {
+				newPrefix := k
+				if prefix != "" {
+					newPrefix = prefix + d.delimiter + k
+				}
+				result = append(result, flatten(newPrefix, val)...)
 			}
-		} else {
-			text = append(text, key+"="+fmt.Sprintf("%v", value))
+		default:
+			result = append(result, prefix+"="+fmt.Sprintf("%v", value))
 		}
+
+		return result
 	}
+
+	// 扁平化所有键值对
+	text = flatten("", d.env)
+
 	return strings.Join(text, "\n")
 }
 
@@ -621,4 +713,33 @@ func (d *DotENV) flattenNestedDict(nestedDict map[string]any) map[string]any {
 		}
 	}
 	return flatDict
+}
+
+// setNestedValue 设置嵌套值
+func (d *DotENV) setNestedValue(key string, value any) {
+	if !d.nested || !strings.Contains(key, d.delimiter) {
+		d.env[key] = value
+		return
+	}
+
+	parts := strings.Split(key, d.delimiter)
+	current := d.env
+
+	for i := 0; i < len(parts)-1; i++ {
+		part := parts[i]
+		if _, exists := current[part]; !exists {
+			current[part] = make(map[string]any)
+		}
+
+		if next, ok := current[part].(map[string]any); ok {
+			current = next
+		} else {
+			// 如果当前节点不是map，创建新的map
+			newMap := make(map[string]any)
+			current[part] = newMap
+			current = newMap
+		}
+	}
+
+	current[parts[len(parts)-1]] = value
 }

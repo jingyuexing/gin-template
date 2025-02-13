@@ -1,0 +1,32 @@
+{
+    "errors": {
+        "system": {
+            "server_error": "Erreur interne du serveur",
+            "rate_limit": "Limite de requêtes dépassée",
+            "not_found": "Ressource non trouvée",
+            "method_not_allowed": "Méthode non autorisée",
+            "timeout": "Délai d'attente dépassé",
+            "conflict": "Conflit de ressources",
+            "too_many_requests": "Trop de requêtes, veuillez réessayer plus tard",
+            "file_not_found": "Fichier non trouvé",
+            "file_too_large": "Taille du fichier trop importante"
+        },
+        "auth": {
+            "unauthorized": "Veuillez vous connecter",
+            "forbidden": "Accès refusé",
+            "user_not_found": "Utilisateur non trouvé",
+            "password_incorrect": "Mot de passe incorrect",
+            "user_not_verified": "Utilisateur non vérifié",
+            "username_exists": "Nom d'utilisateur déjà existant",
+            "token_expired": "Session expirée, veuillez vous reconnecter",
+            "token_invalid": "Authentification invalide"
+        },
+        "db": {
+            "query_failed": "Échec de la requête",
+            "record_not_found": "Enregistrement non trouvé",
+            "insert_failed": "Échec de l'insertion",
+            "delete_failed": "Échec de la suppression",
+            "update_failed": "Échec de la mise à jour"
+        }
+    }
+}

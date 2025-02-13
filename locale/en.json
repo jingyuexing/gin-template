@@ -13,13 +13,13 @@
         },
         "auth": {
             "unauthorized": "Please login first",
-            "forbidden": "Permission denied",
+            "forbidden": "Access denied",
             "user_not_found": "User not found",
             "password_incorrect": "Incorrect password",
             "user_not_verified": "User not verified",
             "username_exists": "Username already exists",
             "token_expired": "Login expired, please login again",
-            "token_invalid": "Invalid authentication credentials"
+            "token_invalid": "Invalid authentication"
         },
         "db": {
             "query_failed": "Database query failed",

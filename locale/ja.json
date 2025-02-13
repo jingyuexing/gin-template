@@ -1,0 +1,32 @@
+{
+    "errors": {
+        "system": {
+            "server_error": "サーバー内部エラー",
+            "rate_limit": "リクエスト制限を超過しました",
+            "not_found": "リソースが見つかりません",
+            "method_not_allowed": "許可されていないメソッドです",
+            "timeout": "リクエストタイムアウト",
+            "conflict": "リソースが競合しています",
+            "too_many_requests": "リクエストが多すぎます。後でもう一度お試しください",
+            "file_not_found": "ファイルが見つかりません",
+            "file_too_large": "ファイルサイズが制限を超えています"
+        },
+        "auth": {
+            "unauthorized": "ログインしてください",
+            "forbidden": "権限がありません",
+            "user_not_found": "ユーザーが存在しません",
+            "password_incorrect": "パスワードが間違っています",
+            "user_not_verified": "ユーザーが未認証です",
+            "username_exists": "ユーザー名は既に使用されています",
+            "token_expired": "ログインの有効期限が切れました。再度ログインしてください",
+            "token_invalid": "無効な認証情報です"
+        },
+        "db": {
+            "query_failed": "データベースクエリが失敗しました",
+            "record_not_found": "レコードが見つかりません",
+            "insert_failed": "データの挿入に失敗しました",
+            "delete_failed": "データの削除に失敗しました",
+            "update_failed": "データの更新に失敗しました"
+        }
+    }
+}
