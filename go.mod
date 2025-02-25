@@ -6,6 +6,8 @@ require (
 	github.com/gin-gonic/gin v1.10.0
 	github.com/go-playground/validator/v10 v10.23.0
 	github.com/golang-jwt/jwt/v5 v5.2.1
+	github.com/graphql-go/graphql v0.8.1
+	github.com/graphql-go/handler v0.2.4
 	github.com/jingyuexing/go-utils v0.1.8
 	github.com/jingyuexing/i18n v0.0.6
 	github.com/sirupsen/logrus v1.9.3
