@@ -74,3 +74,13 @@ func (s *UserService) List(pag dto.Pagination) ([]*model.UserModel, error) {
 	}
 	return users, nil
 }
+
+func (s *UserService) FindUsersByEmail(email string) (*model.UserModel, error) {
+	users,err := userDao.Search(map[string]string{
+		"email": email,
+	},1,1)
+	if err != nil {
+		return nil,builtin.ErrDBQueryFailed
+	}
+	return users[0], nil
+}

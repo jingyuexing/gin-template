@@ -13,6 +13,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	go.mongodb.org/mongo-driver v1.11.4
 	go.uber.org/zap v1.27.0
+	golang.org/x/time v0.3.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gorm.io/driver/clickhouse v0.6.1
 	gorm.io/driver/mysql v1.5.7

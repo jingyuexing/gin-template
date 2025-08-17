@@ -1,9 +1,9 @@
 package main
 
 import (
-	_ "template/boot"
+	boot "template/boot"
 )
 
 func main(){
-
+	boot.Startup();
 }
