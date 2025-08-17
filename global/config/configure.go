@@ -10,11 +10,11 @@ import (
 )
 
 type BaseEnv struct {
-	ConfigurePath string `json:"config" env:"config"`
-	Mode string `json:"mode" env:"mode"`
-	GinMode string `json:"gin_mode" env:"gin_mode"`
-	Port int `json:"port" env:"port"`
-	EnvMode string `json:"env_mode" env:"env_mode"`
+	ConfigurePath  string `json:"config" env:"config"`
+	Mode           string `json:"mode" env:"mode"`
+	GinMode        string `json:"gin_mode" env:"gin_mode"`
+	Port           int    `json:"port" env:"port"`
+	EnvMode        string `json:"env_mode" env:"env_mode"`
 	LoggerLanguage string `json:"logger_lang" env:"logger_lang"`
 }
 
@@ -49,7 +49,7 @@ type SystemVersion struct {
 
 type SystemLogger struct {
 	Level string `json:"level"`
-	Path string `json:"path"`
+	Path  string `json:"path"`
 }
 
 type System struct {
@@ -57,7 +57,7 @@ type System struct {
 	User          SystemUserConfig  `json:"user"`
 	Admin         SystemAdminConfig `json:"admin"`
 	Version       SystemVersion     `json:"version"`
-	Name string `json:"name" env:"app_name"`
+	Name          string            `json:"name" env:"app_name"`
 	Locale        string            `json:"locale" env:"locale"`
 	HideVersion   bool              `json:"hide_version" env:"hide_version"`
 	Token         TokenConfig       `json:"token"`
@@ -65,7 +65,7 @@ type System struct {
 	SwaggerEnable bool              `json:"swagger_enable" env:"swagger_enable"`
 	LoggerLever   string            `json:"logger_level" env:"logger_level"`
 	LoggerPath    string            `json:"logger_path" env:"logger_path"`
-	LoggerName string `json:"logger_name" env:"logger_name"`
+	LoggerName    string            `json:"logger_name" env:"logger_name"`
 }
 
 type Configure struct {
@@ -87,7 +87,7 @@ func LoadBaseConfig() *BaseEnv {
 	// 如果指定了mode，加载对应的环境配置
 	if baseEnv.Mode != "" {
 		modeEnvData, err := os.ReadFile(".env." + baseEnv.Mode)
-		if (err == nil) {
+		if err == nil {
 			env.Load(string(modeEnvData))
 			env.Bind(baseEnv)
 		}
@@ -146,7 +146,6 @@ func LoadEnv() *dotenv.DotENV {
 	}
 	env := dotenv.New(string(data), "_.")
 	baseEnv := &BaseEnv{}
-
 
 	if err := env.Parse().Bind(baseEnv); err != nil {
 		return nil
